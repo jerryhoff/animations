@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Passcode Encryption Animation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #0f0f23, #1a1a2e);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            color: #00ff88;
+        }
+        
+        #status {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ff88;
+            font-size: 18px;
+            text-align: center;
+            z-index: 100;
+        }
+        
+        button {
+            background: rgba(0, 255, 136, 0.2);
+            border: 2px solid #00ff88;
+            color: #00ff88;
+            padding: 10px 20px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: rgba(0, 255, 136, 0.4);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="controls">
+            <button onclick="startAnimation()">Start Encryption Process</button>
+        </div>
+        <div id="status">Bitcoin Passcode Encryption & Distribution System</div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, animationId;
+        let spreadsheetData = [];
+        let encryptionKey = null;
+        let encryptedPieces = [];
+        let cloudProviders = [];
+        let currentPhase = 0;
+        
+        // Animation phases
+        const PHASES = {
+            IDLE: 0,
+            SHOW_DATA: 1,
+            ENCRYPT: 2,
+            FRAGMENT: 3,
+            DISTRIBUTE: 4
+        };
+
+        function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x0f0f23, 50, 200);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 10, 30);
+            camera.lookAt(0, 0, 0);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x0f0f23, 1);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0x00ff88, 1);
+            directionalLight.position.set(10, 20, 10);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            // Point lights for dramatic effect
+            const pointLight1 = new THREE.PointLight(0x0088ff, 0.5, 50);
+            pointLight1.position.set(-20, 10, 0);
+            scene.add(pointLight1);
+            
+            const pointLight2 = new THREE.PointLight(0xff8800, 0.5, 50);
+            pointLight2.position.set(20, 10, 0);
+            scene.add(pointLight2);
+            
+            // Create initial elements
+            createSpreadsheet();
+            createEncryptionKey();
+            createCloudProviders();
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+            
+            // Start render loop
+            animate();
+        }
+        
+        function createSpreadsheet() {
+            const rows = 8;
+            const cols = 4;
+            
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    // Cell geometry
+                    const geometry = new THREE.PlaneGeometry(2, 1);
+                    const material = new THREE.MeshLambertMaterial({ 
+                        color: 0x00ff88,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    
+                    const cell = new THREE.Mesh(geometry, material);
+                    cell.position.set((j - cols/2) * 2.5, (rows/2 - i) * 1.2, 0);
+                    cell.userData = {
+                        originalPosition: cell.position.clone(),
+                        row: i,
+                        col: j,
+                        passcode: generatePasscode()
+                    };
+                    
+                    // Add border
+                    const borderGeometry = new THREE.EdgesGeometry(geometry);
+                    const borderMaterial = new THREE.LineBasicMaterial({ color: 0x004400 });
+                    const border = new THREE.LineSegments(borderGeometry, borderMaterial);
+                    cell.add(border);
+                    
+                    // Add text texture (simulated)
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 256;
+                    canvas.height = 128;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#003300';
+                    ctx.fillRect(0, 0, 256, 128);
+                    ctx.fillStyle = '#00ff88';
+                    ctx.font = '20px Courier New';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(cell.userData.passcode, 128, 70);
+                    
+                    const texture = new THREE.CanvasTexture(canvas);
+                    const textMaterial = new THREE.MeshBasicMaterial({ 
+                        map: texture,
+                        transparent: true,
+                        opacity: 0.9
+                    });
+                    const textGeometry = new THREE.PlaneGeometry(1.8, 0.9);
+                    const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+                    textMesh.position.z = 0.01;
+                    cell.add(textMesh);
+                    
+                    cell.visible = false;
+                    spreadsheetData.push(cell);
+                    scene.add(cell);
+                }
+            }
+        }
+        
+        function createEncryptionKey() {
+            const geometry = new THREE.CylinderGeometry(0.3, 0.3, 4, 8);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: 0xffd700,
+                shininess: 100,
+                emissive: 0x332200
+            });
+            
+            encryptionKey = new THREE.Mesh(geometry, material);
+            encryptionKey.position.set(0, 15, 0);
+            encryptionKey.rotation.z = Math.PI / 2;
+            encryptionKey.visible = false;
+            
+            // Add key teeth
+            for (let i = 0; i < 3; i++) {
+                const toothGeometry = new THREE.BoxGeometry(0.2, 0.4, 0.1);
+                const toothMaterial = new THREE.MeshPhongMaterial({ color: 0xffd700 });
+                const tooth = new THREE.Mesh(toothGeometry, toothMaterial);
+                tooth.position.set(-1 + i * 0.8, -0.4, 0);
+                encryptionKey.add(tooth);
+            }
+            
+            scene.add(encryptionKey);
+        }
+        
+        function createCloudProviders() {
+            const providers = [
+                { name: 'AWS', color: 0xff9900, position: [-25, 5, -10] },
+                { name: 'Google', color: 0x4285f4, position: [25, 5, -10] },
+                { name: 'Azure', color: 0x0078d4, position: [0, 5, -25] }
+            ];
+            
+            providers.forEach((provider, index) => {
+                // Cloud shape (simplified)
+                const cloudGroup = new THREE.Group();
+                
+                // Main cloud body
+                const spheres = [
+                    { pos: [0, 0, 0], scale: 1.5 },
+                    { pos: [-1, 0.2, 0], scale: 1.2 },
+                    { pos: [1, 0.2, 0], scale: 1.2 },
+                    { pos: [0, 0.8, 0], scale: 1 },
+                    { pos: [-0.5, -0.3, 0], scale: 0.8 },
+                    { pos: [0.5, -0.3, 0], scale: 0.8 }
+                ];
+                
+                spheres.forEach(sphere => {
+                    const geometry = new THREE.SphereGeometry(sphere.scale, 16, 16);
+                    const material = new THREE.MeshPhongMaterial({ 
+                        color: provider.color,
+                        transparent: true,
+                        opacity: 0.7
+                    });
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.set(...sphere.pos);
+                    cloudGroup.add(mesh);
+                });
+                
+                cloudGroup.position.set(...provider.position);
+                cloudGroup.userData = { name: provider.name, pieces: [] };
+                cloudGroup.visible = false;
+                
+                cloudProviders.push(cloudGroup);
+                scene.add(cloudGroup);
+            });
+        }
+        
+        function generatePasscode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < 12; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+        
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+        
+        function startAnimation() {
+            if (currentPhase !== PHASES.IDLE) return;
+            
+            currentPhase = PHASES.SHOW_DATA;
+            updateStatus('Displaying Bitcoin Passcodes...');
+            
+            // Phase 1: Show spreadsheet data
+            spreadsheetData.forEach((cell, index) => {
+                setTimeout(() => {
+                    cell.visible = true;
+                    cell.scale.set(0, 0, 0);
+                    
+                    // Animate scale up
+                    const startTime = Date.now();
+                    const animateScale = () => {
+                        const elapsed = Date.now() - startTime;
+                        const progress = Math.min(elapsed / 500, 1);
+                        const scale = progress;
+                        cell.scale.set(scale, scale, scale);
+                        
+                        if (progress < 1) {
+                            requestAnimationFrame(animateScale);
+                        }
+                    };
+                    animateScale();
+                }, index * 100);
+            });
+            
+            // Start encryption phase
+            setTimeout(() => {
+                startEncryption();
+            }, 3000);
+        }
+        
+        function startEncryption() {
+            currentPhase = PHASES.ENCRYPT;
+            updateStatus('Encrypting with security key...');
+            
+            // Show encryption key
+            encryptionKey.visible = true;
+            encryptionKey.scale.set(0, 0, 0);
+            
+            // Animate key appearance
+            const startTime = Date.now();
+            const animateKey = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / 1000, 1);
+                const scale = progress;
+                encryptionKey.scale.set(scale, scale, scale);
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animateKey);
+                }
+            };
+            animateKey();
+            
+            // Move key down to encrypt data
+            setTimeout(() => {
+                const keyStartTime = Date.now();
+                const initialY = encryptionKey.position.y;
+                const targetY = 0;
+                
+                const moveKey = () => {
+                    const elapsed = Date.now() - keyStartTime;
+                    const progress = Math.min(elapsed / 2000, 1);
+                    const eased = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+                    
+                    encryptionKey.position.y = initialY + (targetY - initialY) * eased;
+                    encryptionKey.rotation.y = progress * Math.PI * 4; // Spin while moving
+                    
+                    // Change data appearance as key passes
+                    if (progress > 0.5) {
+                        spreadsheetData.forEach(cell => {
+                            cell.material.color.setHex(0xff4444);
+                            cell.children[1].material.opacity = 0.3; // Dim text
+                        });
+                    }
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(moveKey);
+                    } else {
+                        setTimeout(() => {
+                            startFragmentation();
+                        }, 1000);
+                    }
+                };
+                moveKey();
+            }, 1000);
+        }
+        
+        function startFragmentation() {
+            currentPhase = PHASES.FRAGMENT;
+            updateStatus('Breaking into encrypted fragments...');
+            
+            // Hide original key
+            encryptionKey.visible = false;
+            
+            // Create fragments
+            const fragmentsPerPiece = Math.ceil(spreadsheetData.length / 3);
+            
+            for (let i = 0; i < 3; i++) {
+                const startIndex = i * fragmentsPerPiece;
+                const endIndex = Math.min(startIndex + fragmentsPerPiece, spreadsheetData.length);
+                
+                // Create fragment container
+                const fragmentGroup = new THREE.Group();
+                
+                for (let j = startIndex; j < endIndex; j++) {
+                    const cell = spreadsheetData[j];
+                    const fragmentGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.2);
+                    const fragmentMaterial = new THREE.MeshPhongMaterial({ 
+                        color: 0x666666,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    
+                    const fragment = new THREE.Mesh(fragmentGeometry, fragmentMaterial);
+                    fragment.position.copy(cell.position);
+                    fragment.position.z = 1;
+                    
+                    // Add random rotation and offset
+                    fragment.rotation.set(
+                        Math.random() * 0.5,
+                        Math.random() * 0.5,
+                        Math.random() * 0.5
+                    );
+                    
+                    fragmentGroup.add(fragment);
+                    
+                    // Hide original cell
+                    cell.visible = false;
+                }
+                
+                fragmentGroup.userData = { targetProvider: i };
+                encryptedPieces.push(fragmentGroup);
+                scene.add(fragmentGroup);
+            }
+            
+            setTimeout(() => {
+                startDistribution();
+            }, 2000);
+        }
+        
+        function startDistribution() {
+            currentPhase = PHASES.DISTRIBUTE;
+            updateStatus('Distributing to cloud providers...');
+            
+            // Show cloud providers
+            cloudProviders.forEach((cloud, index) => {
+                cloud.visible = true;
+                cloud.scale.set(0, 0, 0);
+                
+                setTimeout(() => {
+                    const startTime = Date.now();
+                    const animateCloud = () => {
+                        const elapsed = Date.now() - startTime;
+                        const progress = Math.min(elapsed / 1000, 1);
+                        const scale = progress;
+                        cloud.scale.set(scale, scale, scale);
+                        
+                        if (progress < 1) {
+                            requestAnimationFrame(animateCloud);
+                        }
+                    };
+                    animateCloud();
+                }, index * 500);
+            });
+            
+            // Animate pieces to clouds
+            encryptedPieces.forEach((piece, index) => {
+                setTimeout(() => {
+                    const targetCloud = cloudProviders[piece.userData.targetProvider];
+                    const startPos = piece.position.clone();
+                    const targetPos = targetCloud.position.clone();
+                    targetPos.y -= 2;
+                    
+                    const startTime = Date.now();
+                    const movePiece = () => {
+                        const elapsed = Date.now() - startTime;
+                        const progress = Math.min(elapsed / 3000, 1);
+                        const eased = 1 - Math.pow(1 - progress, 2); // Ease out quad
+                        
+                        piece.position.lerpVectors(startPos, targetPos, eased);
+                        piece.rotation.y += 0.05;
+                        piece.scale.setScalar(1 - progress * 0.3);
+                        
+                        if (progress < 1) {
+                            requestAnimationFrame(movePiece);
+                        } else {
+                            // Piece absorbed into cloud
+                            piece.visible = false;
+                            targetCloud.userData.pieces.push(piece);
+                        }
+                    };
+                    movePiece();
+                }, index * 1000);
+            });
+            
+            setTimeout(() => {
+                updateStatus('Encryption and distribution complete! Data secured across multiple cloud providers.');
+                currentPhase = PHASES.IDLE;
+            }, 6000);
+        }
+        
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+            
+            // Rotate camera slightly for cinematic effect
+            const time = Date.now() * 0.0005;
+            camera.position.x = Math.sin(time) * 2;
+            camera.lookAt(0, 0, 0);
+            
+            // Animate cloud providers floating
+            cloudProviders.forEach((cloud, index) => {
+                if (cloud.visible) {
+                    cloud.position.y += Math.sin(time * 2 + index) * 0.01;
+                    cloud.rotation.y += 0.002;
+                }
+            });
+            
+            // Subtle animation for visible spreadsheet cells
+            spreadsheetData.forEach((cell, index) => {
+                if (cell.visible) {
+                    cell.position.z = Math.sin(time * 3 + index * 0.5) * 0.1;
+                }
+            });
+            
+            renderer.render(scene, camera);
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Initialize the scene
+        init();
+    </script>
+</body>
+</html>
